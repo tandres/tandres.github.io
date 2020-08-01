@@ -1,0 +1,15 @@
+{
+  "name": "crabmancake",
+  "collaborators": [
+    "Trenton Andres <trenton.andres@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "crabmancake_bg.wasm",
+    "crabmancake.js",
+    "crabmancake.d.ts"
+  ],
+  "module": "crabmancake.js",
+  "types": "crabmancake.d.ts",
+  "sideEffects": false
+}

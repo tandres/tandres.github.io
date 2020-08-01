@@ -1,10 +1,16 @@
-<!DOCTYPE html>
 <html>
-    <head>
-        <title>A Test Page</title>
-    </head>
-    <body>
-        <p>Hello, Worlds!</p>
-    </body>
-</html>
+   <head>
+     <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+     <title>CrabManCake</title>
+   </head>
+   <body>
+     <script type=module>
+        import init from './pkg/crabmancake.js';
+        async function run() {
+            await init();
+        }
 
+        run();
+     </script>
+   </body>
+ </html>
