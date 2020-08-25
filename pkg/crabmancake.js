@@ -1,26 +1,6 @@
 
 let wasm;
 
-const heap = new Array(32).fill(undefined);
-
-heap.push(undefined, null, true, false);
-
-function getObject(idx) { return heap[idx]; }
-
-let heap_next = heap.length;
-
-function dropObject(idx) {
-    if (idx < 36) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
 
 cachedTextDecoder.decode();
@@ -37,6 +17,12 @@ function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
 
+const heap = new Array(32).fill(undefined);
+
+heap.push(undefined, null, true, false);
+
+let heap_next = heap.length;
+
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
     const idx = heap_next;
@@ -48,34 +34,89 @@ function addHeapObject(obj) {
     return idx;
 }
 
+function getObject(idx) { return heap[idx]; }
+
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+
 function _assertBoolean(n) {
     if (typeof(n) !== 'boolean') {
         throw new Error('expected a boolean argument');
     }
 }
-/**
-*/
-export function main() {
-    wasm.main();
-}
 
-function logError(f) {
-    return function () {
-        try {
-            return f.apply(this, arguments);
-
-        } catch (e) {
-            let error = (function () {
-                try {
-                    return e instanceof Error ? `${e.message}\n\nStack:\n${e.stack}` : e.toString();
-                } catch(_) {
-                    return "<failed to stringify thrown value>";
-                }
-            }());
-            console.error("wasm-bindgen: imported JS function that was not marked as `catch` threw an error:", error);
-            throw e;
+function debugString(val) {
+    // primitive types
+    const type = typeof val;
+    if (type == 'number' || type == 'boolean' || val == null) {
+        return  `${val}`;
+    }
+    if (type == 'string') {
+        return `"${val}"`;
+    }
+    if (type == 'symbol') {
+        const description = val.description;
+        if (description == null) {
+            return 'Symbol';
+        } else {
+            return `Symbol(${description})`;
         }
-    };
+    }
+    if (type == 'function') {
+        const name = val.name;
+        if (typeof name == 'string' && name.length > 0) {
+            return `Function(${name})`;
+        } else {
+            return 'Function';
+        }
+    }
+    // objects
+    if (Array.isArray(val)) {
+        const length = val.length;
+        let debug = '[';
+        if (length > 0) {
+            debug += debugString(val[0]);
+        }
+        for(let i = 1; i < length; i++) {
+            debug += ', ' + debugString(val[i]);
+        }
+        debug += ']';
+        return debug;
+    }
+    // Test for built-in
+    const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
+    let className;
+    if (builtInMatches.length > 1) {
+        className = builtInMatches[1];
+    } else {
+        // Failed to match the standard '[object ClassName]'
+        return toString.call(val);
+    }
+    if (className == 'Object') {
+        // we're a user defined class or Object
+        // JSON.stringify avoids problems with cycles, and is generally much
+        // easier than looping through ownProperties of `val`.
+        try {
+            return 'Object(' + JSON.stringify(val) + ')';
+        } catch (_) {
+            return 'Object';
+        }
+    }
+    // errors
+    if (val instanceof Error) {
+        return `${val.name}: ${val.message}\n${val.stack}`;
+    }
+    // TODO we could test for more things here, like `Set`s and `Map`s.
+    return className;
 }
 
 let WASM_VECTOR_LEN = 0;
@@ -142,6 +183,30 @@ function getInt32Memory0() {
     }
     return cachegetInt32Memory0;
 }
+/**
+*/
+export function main() {
+    wasm.main();
+}
+
+function logError(f) {
+    return function () {
+        try {
+            return f.apply(this, arguments);
+
+        } catch (e) {
+            let error = (function () {
+                try {
+                    return e instanceof Error ? `${e.message}\n\nStack:\n${e.stack}` : e.toString();
+                } catch(_) {
+                    return "<failed to stringify thrown value>";
+                }
+            }());
+            console.error("wasm-bindgen: imported JS function that was not marked as `catch` threw an error:", error);
+            throw e;
+        }
+    };
+}
 
 function isLikeNone(x) {
     return x === undefined || x === null;
@@ -197,6 +262,10 @@ async function init(input) {
     }
     const imports = {};
     imports.wbg = {};
+    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
+        var ret = getStringFromWasm0(arg0, arg1);
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
         takeObject(arg0);
     };
@@ -218,10 +287,6 @@ async function init(input) {
         getInt32Memory0()[arg0 / 4 + 1] = len0;
         getInt32Memory0()[arg0 / 4 + 0] = ptr0;
     });
-    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
-        var ret = getStringFromWasm0(arg0, arg1);
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbg_instanceof_Window_e8f84259147dce74 = logError(function(arg0) {
         var ret = getObject(arg0) instanceof Window;
         _assertBoolean(ret);
@@ -231,16 +296,9 @@ async function init(input) {
         var ret = getObject(arg0).document;
         return isLikeNone(ret) ? 0 : addHeapObject(ret);
     });
-    imports.wbg.__wbg_body_61c142aa6eae691f = logError(function(arg0) {
-        var ret = getObject(arg0).body;
+    imports.wbg.__wbg_getElementById_71dfbba1688677b0 = logError(function(arg0, arg1, arg2) {
+        var ret = getObject(arg0).getElementById(getStringFromWasm0(arg1, arg2));
         return isLikeNone(ret) ? 0 : addHeapObject(ret);
-    });
-    imports.wbg.__wbg_createElement_d00b8e24838e36e1 = handleError(function(arg0, arg1, arg2) {
-        var ret = getObject(arg0).createElement(getStringFromWasm0(arg1, arg2));
-        return addHeapObject(ret);
-    });
-    imports.wbg.__wbg_setinnerHTML_03a283e035437b16 = logError(function(arg0, arg1, arg2) {
-        getObject(arg0).innerHTML = getStringFromWasm0(arg1, arg2);
     });
     imports.wbg.__wbg_debug_ef2b78738889619f = logError(function(arg0) {
         console.debug(getObject(arg0));
@@ -257,9 +315,25 @@ async function init(input) {
     imports.wbg.__wbg_warn_502e53bc79de489a = logError(function(arg0) {
         console.warn(getObject(arg0));
     });
-    imports.wbg.__wbg_appendChild_8658f795c44d1316 = handleError(function(arg0, arg1) {
-        var ret = getObject(arg0).appendChild(getObject(arg1));
-        return addHeapObject(ret);
+    imports.wbg.__wbg_instanceof_CanvasRenderingContext2d_967775b24c689b32 = logError(function(arg0) {
+        var ret = getObject(arg0) instanceof CanvasRenderingContext2D;
+        _assertBoolean(ret);
+        return ret;
+    });
+    imports.wbg.__wbg_setfillStyle_c05ba2508c693321 = logError(function(arg0, arg1) {
+        getObject(arg0).fillStyle = getObject(arg1);
+    });
+    imports.wbg.__wbg_fillRect_57b5c7207b51d2b9 = logError(function(arg0, arg1, arg2, arg3, arg4) {
+        getObject(arg0).fillRect(arg1, arg2, arg3, arg4);
+    });
+    imports.wbg.__wbg_instanceof_HtmlCanvasElement_d2d7786f00856e0a = logError(function(arg0) {
+        var ret = getObject(arg0) instanceof HTMLCanvasElement;
+        _assertBoolean(ret);
+        return ret;
+    });
+    imports.wbg.__wbg_getContext_59043a63a2f9266b = handleError(function(arg0, arg1, arg2) {
+        var ret = getObject(arg0).getContext(getStringFromWasm0(arg1, arg2));
+        return isLikeNone(ret) ? 0 : addHeapObject(ret);
     });
     imports.wbg.__wbg_newnoargs_e2fdfe2af14a2323 = logError(function(arg0, arg1) {
         var ret = new Function(getStringFromWasm0(arg0, arg1));
@@ -293,6 +367,13 @@ async function init(input) {
     imports.wbg.__wbindgen_object_clone_ref = function(arg0) {
         var ret = getObject(arg0);
         return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
+        var ret = debugString(getObject(arg1));
+        var ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        getInt32Memory0()[arg0 / 4 + 1] = len0;
+        getInt32Memory0()[arg0 / 4 + 0] = ptr0;
     };
     imports.wbg.__wbindgen_throw = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
