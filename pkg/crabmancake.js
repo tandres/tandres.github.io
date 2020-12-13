@@ -981,11 +981,11 @@ async function init(input) {
         var ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper2545 = logError(function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper2587 = logError(function(arg0, arg1, arg2) {
         var ret = makeMutClosure(arg0, arg1, 86, __wbg_adapter_22);
         return addHeapObject(ret);
     });
-    imports.wbg.__wbindgen_closure_wrapper4525 = logError(function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper4578 = logError(function(arg0, arg1, arg2) {
         var ret = makeMutClosure(arg0, arg1, 153, __wbg_adapter_25);
         return addHeapObject(ret);
     });
